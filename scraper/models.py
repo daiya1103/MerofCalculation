@@ -27,7 +27,7 @@ class Product(models.Model):
         null=True
     )
 
-    category = models.CharField(
+    tag2 = models.CharField(
         verbose_name='サブサブカテゴリ',
         max_length=10,
         blank=True,

@@ -2,6 +2,14 @@
 
 {% block content %}
 
-<h1>こんにちは</h1>
+<form action="" method="post">
+    {%csrf_token%}
+    <input type="text" name="category" placeholder="カテゴリー">
+    <input type="text" name="tag1" placeholder="タグ1">
+    <input type="text" name="tag2" placeholder="タグ2">
+    <input type="text" name="keyword" placeholder="キーワード">
+    <input type="text" name="agent" placeholder="ユーザーエージェント">
+    <button type="submit">送信</button>
+</form>
 
 {% endblock %}
