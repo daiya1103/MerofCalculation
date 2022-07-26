@@ -8,10 +8,6 @@ class Product(models.Model):
         on_delete=models.CASCADE,
     )
 
-    key = models.PositiveIntegerField(
-        verbose_name='キー',
-    )
-
     keyword = models.CharField(
         verbose_name='キーワード',
         max_length=50
@@ -71,6 +67,22 @@ class Product(models.Model):
 
     def __str__(self):
         return self.product_name
+
+class ProductKey(models.Model):
+    user = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.CASCADE
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE
+    )
+
+    key = models.CharField(
+        verbose_name='キー',
+        max_length=8,
+    )
 
 class Seller(models.Model):
     user = models.ForeignKey(
