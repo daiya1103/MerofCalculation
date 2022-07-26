@@ -8,6 +8,10 @@ class Product(models.Model):
         on_delete=models.CASCADE,
     )
 
+    key = models.PositiveIntegerField(
+        verbose_name='キー',
+    )
+
     keyword = models.CharField(
         verbose_name='キーワード',
         max_length=50
@@ -47,6 +51,10 @@ class Product(models.Model):
         max_length=50,
     )
 
+    product_price = models.PositiveIntegerField(
+        verbose_name = '商品価格',
+    )
+
     sold_time = models.CharField(
         verbose_name='売り切れ時間',
         max_length=5,
@@ -83,6 +91,7 @@ class Seller(models.Model):
         verbose_name='お気に入り',
         default=False,
     )
+
 
 class SellerProduct(models.Model):
     seller = models.ForeignKey(

@@ -6,10 +6,14 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .forms import UserCreationForm
 from .models import Product, Seller, SellerProduct
-from user.models import User
+from user.models import User, UserProperty
 
+class UserPropertyInline(admin.StackedInline):
+    model = UserProperty
+    can_delete = False
 
 class CustomUserAdmin(UserAdmin):
+    inlines= (UserPropertyInline,)
     fieldsets = (
         (None, {
             'fields': (

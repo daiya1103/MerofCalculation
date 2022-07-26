@@ -3,55 +3,100 @@ from django.shortcuts import render
 # Create your views here.
 
 from django.views import generic
-from ..models import Product
+from ..models import Product, Seller
 
 import json
 from time import sleep
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 import os
-import platform
-import requests
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome import service
 from selenium.webdriver.chrome.options import Options
-import pandas as pd
-from collections import Counter
-import re
 
 def index(request):
 
     products = Product.objects.filter(user=request.user)
 
     if request.method == 'POST':
+        user = request.user
+        user_os = user.userproperty.os
+        user_agent = user.userproperty.user_agent
 
         with open('category.json', 'r') as file:
             category_dict = json.load(file)
 
-        print(category_dict)
-
+        key = request.POST.get('key')
+        keyword = request.POST.get('keyword')
         category = request.POST['category']
-        tag1 = request.POST['tag1']
-        if request.POST['tag2']=='':
+        # tag1リファクタリング
+        if request.POST.get('tag1') == '':
+            tag1 = 'すべて'
+        else:
+            tag1 = request.POST.get('tag1')
+        #tag2リファクタリング
+        if request.POST.get('tag2')=='':
             tag2 = 'すべて'
         else :
-            tag2 = request.POST['tag2']
-        keyword = request.POST.get('keyword')
-        user_agent = request.POST.get('agent')
+            tag2 = request.POST.get('tag2')
+
+        # category_id作成
+        if category == 'すべて':
+            category_id = ''
+        if tag1 == 'すべて':
+            category_id = category_dict[category][tag1]
+        else:
+            print(tag2)
+            tag2_list = tag2.split(' ')
+            tag2_list.pop(-1)
+            tag2_n = 1
+            print(tag2_list)
+            for tag2 in tag2_list:
+                if tag2_n == 1:
+                    category_id = str(category_dict[category][tag1][tag2])
+                    tag2_n+=1
+                else:
+                    category_id = category_id + ',' + str(category_dict[category][tag1][tag2])
+
+        print(category_id)
+
+        # URL作成用
+        if keyword == '':
+            search_word = ''
+        else:
+            search_word = keyword.split()
+            n=1
+            for word in search_word:
+                if n == 1:
+                    search_word = word
+                    n+=1
+                else:
+                    search_word = search_word + '+' + word
+        status = 'sold_out'
+        item_condition = 1
+        print(search_word)
 
         CUR_PATH = os.getcwd()
         CHROMEDRIVER = CUR_PATH + '/tools/chromedriver'
-        BASE_URL = 'https://jp.mercari.com/search?keyword={0}&order=desc&sort=created_time&status={1}&item_condition_id={2}&t1_category_id={3}&category_id={4}&page_token=v1:{5}'
+        BASE_URL = 'https://jp.mercari.com/search?keyword={0}&order=desc&sort=created_time&status={1}&item_condition_id={2}&category_id={3}&page_token=v1:{4}'
         # 自分のUserAgentを''内に入れる
         USER_AGENT = user_agent
 
         # Webドライバー作成
-        options = webdriver.ChromeOptions()
+        driver_version = '104.0.5112.29'
+
+        options = Options()
 
         options.add_argument('--user-agent=' + USER_AGENT)
         options.add_argument('--incognito')
+        if user_os == 'windows':
+            print('windowsです')
+            options.binary_location = 'C:/Program Files/Google/Chrome Beta/Application/chrome.exe'
+        elif user_os == 'mac':
+            print('macです')
+            options.binary_location = '/Applications/Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta'
 
-        chrome_service = service.Service(ChromeDriverManager().install())
+        chrome_service = service.Service(ChromeDriverManager(version=driver_version).install())
 
         driver = webdriver.Chrome(
             service = chrome_service,
@@ -60,105 +105,52 @@ def index(request):
 
         driver.implicitly_wait(10)
 
-        # URL作成用
-        search_word = keyword.split()
-        n=1
-        for word in search_word:
-            if n == 1:
-                search_word = word
-                n+=1
-            else:
-                search_word = search_word + '+' + word
-        status = 'sold_out'
-        item_condition = 1
-        t1_category_id = 3
-        category_item_data = ['282', '283', '284']
-        category_n=1
-        for num in category_item_data:
-            if category_n == 1:
-                category_id = num
-                category_n+=1
-            else:
-                category_id = category_id + ',' + num
-
-
         i = 1
-        MAX_PAGE = 5
-        item_data = []
+        MAX_PAGE = 1
+        url_list = []
 
         # # 以下クローリング
         sleep(5)
         while i != MAX_PAGE + 1:
-            driver.get(BASE_URL.format(search_word, status, item_condition, t1_category_id, category_id, i+1))
+            driver.get(BASE_URL.format(search_word, status, item_condition, category_id, i))
             items = driver.find_elements(By.CSS_SELECTOR, 'li[data-testid="item-cell"]')
 
             for item in items:
                 item_url = item.find_element(By.CSS_SELECTOR, 'a').get_attribute('href')
-                item_name = item.find_element(By.CSS_SELECTOR, 'mer-item-thumbnail').get_attribute('item-name')
-
-                shadow_item_price = item.find_element(By.CSS_SELECTOR, 'mer-item-thumbnail').shadow_root
-                item_price = shadow_item_price\
-                    .find_element(By.CSS_SELECTOR, 'figure div.price-container mer-price')\
-                        .get_attribute('value')
-
-                item_data.append({
-                    '商品名': item_name,
-                    'URL': item_url,
-                    '価格': int(item_price),
-                })
+                url_list.append(item_url)
                 print(item_url)
 
             sleep(5)
             i+=1
 
-        # seller_url_list = []
-        # seller_data_list = []
-        # for data in item_data:
-        #     item_url = data['URL']
-        #     driver.get(item_url)
+        for url in url_list:
+            driver.get(url)
 
-        #     seller_name = driver.find_element(By.CSS_SELECTOR, '#item-info > section:nth-of-type(5) > mer-list > mer-list-item a > mer-user-object').get_attribute('name')
-        #     seller_url = driver.find_element(By.CSS_SELECTOR, '#item-info > section:nth-of-type(5) > mer-list > mer-list-item a').get_attribute('href')
-        #     time = driver.find_element(By.CSS_SELECTOR, '#item-info > section:nth-of-type(2) > mer-text').text
-
-        #     data['セラー'] = seller_name
-        #     data['セラーURL'] = seller_url
-        #     data['出品時間'] = time
-        #     seller_data_list.append((
-        #         seller_name,
-        #         seller_url,
-        #     ))
-        #     print(seller_name)
-        #     sleep(5)
-
-        # count_seller = Counter(seller_data_list)
-        # sellers = count_seller.keys()
-        # seller_data = [
-        #     {
-        #         'セラー': seller[0],
-        #         'セラーURL': seller[1],
-        #         '出現回数': count_seller[seller[0], seller[1]],
-        #     }
-        #     for seller in sellers
-        # ]
-
-        # for seller in seller_data:
-        #     seller_revenue = 0
-        #     for item in item_data:
-        #         if seller['セラー'] == item['セラー']:
-        #             seller_revenue = seller_revenue + item['価格']
-        #         else:
-        #             continue
-        #     seller['セラー総売上'] = seller_revenue
-
-        # item_df = pd.DataFrame(item_data)
-        # seller_df = pd.DataFrame(seller_data).sort_values('出現回数', ascending=False)
-
-
-
-        # with pd.ExcelWriter(CUR_PATH+'/data/kids.xlsx') as writer:
-        #     item_df.to_excel(writer, sheet_name='商品リスト', index=None)
-        #     seller_df.to_excel(writer, sheet_name='出品者リスト', index=None)
+            product_name = driver.find_element(By.CSS_SELECTOR, 'section > .sticky-outer-wrapper > .sticky-inner-wrapper > div > div >div >div').get_attribute('aria-label')
+            product_img = driver.find_element(By.CSS_SELECTOR, 'section > .sticky-outer-wrapper > .sticky-inner-wrapper > div > div >div >div mer-item-thumbnail').get_attribute('src')
+            seller_name = driver.find_element(By.CSS_SELECTOR, '#item-info > section:nth-of-type(5) > mer-list > mer-list-item a > mer-user-object').get_attribute('name')
+            seller_url = driver.find_element(By.CSS_SELECTOR, '#item-info > section:nth-of-type(5) > mer-list > mer-list-item a').get_attribute('href')
+            sold_time = driver.find_element(By.CSS_SELECTOR, '#item-info > section:nth-of-type(2) > mer-text').text
+            shadow_product_price = driver.find_element(By.CSS_SELECTOR, '#item-info mer-price').shadow_root
+            product_price = int(shadow_product_price.find_element(By.CSS_SELECTOR, 'span.number').text.replace(',', ''))
+            print(seller_name)
+            products = Product.objects.create(
+                user = user,
+                key = key,
+                keyword = keyword,
+                category = category,
+                tag1 = tag1,
+                tag2 = tag2,
+                product_url = url,
+                product_img = product_img,
+                product_name = product_name,
+                product_price = product_price,
+                sold_time = sold_time,
+                seller_name = seller_name,
+                seller_url = seller_url,
+            )
+            products.save
+            sleep(5)
 
         driver.quit()
     else:

@@ -1,4 +1,5 @@
 import sys
+from tabnanny import verbose
 sys.dont_write_bytecode = True
 
 from django.db import models
@@ -74,3 +75,23 @@ class User(AbstractBaseUser):
         "Is the user a member of staff?"
         # Simplest possible answer: All admins are staff
         return self.is_admin
+
+class UserProperty(models.Model):
+    OS = (('mac', 'Mac'),('windows', 'Windows'))
+    user = models.OneToOneField(
+        User,
+        primary_key=True,
+        unique=True,
+        on_delete=models.CASCADE,
+    )
+
+    user_agent = models.CharField(
+        verbose_name='ユーザーエージェント',
+        max_length=1000,
+    )
+
+    os = models.CharField(
+        verbose_name='OS',
+        choices=OS,
+        max_length=20,
+    )

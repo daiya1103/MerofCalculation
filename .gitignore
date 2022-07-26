@@ -5,3 +5,4 @@ media
 db.sqlite3
 .env
 test.py
+scrape_test.py
